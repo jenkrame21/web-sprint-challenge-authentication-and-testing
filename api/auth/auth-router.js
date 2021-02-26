@@ -6,32 +6,22 @@ const router = require('express').Router();
 const Users = require("../users/users-model.js");
 const { isValid } = require("../users/users-service.js");
 const { jwtSecret } = require("../../config/secrets.js");
+const { checkPayload } = require("../middleware/checkPayload.js");
+const { checkUserInDb } = require("../middleware/checkUserInDb.js");
 
-router.post('/register', (req, res) => {
-  const credentials = req.body;
-
-  if (isValid(credentials)) {
-    const rounds = process.env.BCRYPT_ROUNDS || 10;
+router.post('/register', checkPayload, checkUserInDb, async (req, res) => {
+  try {
+    const credentials = req.body;
+    const rounds = process.env.BYCRYPT_ROUNDS || 10;
     const hash = bcryptjs.hashSync(credentials.password, rounds);
-    credentials.password = hash;
-
-    Users.addUser(credentials)
-      .then((user) => {
-        res.status(201).json(user);
-      })
-      .catch((error) => {
-        res.status(500).json({
-          message: error.message
-        });
-      });
-    } else if(!credentials) {
-    res.status(400).json({
-      message: "Username and password required."
-    });
-
-  } else {
-    res.status(400).json({
-      message: "Username taken."
+    const newUser = await Users.addUser({
+      username: credentials.username,
+      password: hash
+    })
+    res.status(201).json(newUser);
+  } catch(error) {
+    res.status(500).json({
+      message: error.message
     });
   }
 });
